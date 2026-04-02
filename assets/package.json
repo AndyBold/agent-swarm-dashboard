@@ -1,0 +1,16 @@
+{
+  "name": "agent-swarm-dashboard",
+  "version": "1.0.0",
+  "description": "Live web dashboard showing sub-agent activity in real time",
+  "scripts": {
+    "start": "bun run src/server.ts",
+    "dev": "bun --watch src/server.ts"
+  },
+  "dependencies": {
+    "elysia": "^1.2.0",
+    "@elysiajs/static": "^1.1.0"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}

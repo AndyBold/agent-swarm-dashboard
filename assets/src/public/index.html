@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🐉 Agent Swarm</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    /* ── Base ── */
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: #0a0d14;
+      color: #e2e8f0;
+      font-family: 'Inter', system-ui, sans-serif;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Glass panel ── */
+    .glass {
+      background: rgba(255,255,255,0.04);
+      backdrop-filter: blur(16px) saturate(180%);
+      -webkit-backdrop-filter: blur(16px) saturate(180%);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px;
+    }
+
+    /* ── Header ── */
+    header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 24px;
+      background: rgba(10,13,20,0.85);
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+      flex-shrink: 0;
+      z-index: 10;
+    }
+
+    .brand {
+      font-size: 1.2rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, #a78bfa, #38bdf8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #22c55e;
+      box-shadow: 0 0 8px #22c55e;
+      animation: pulse-dot 2s ease-in-out infinite;
+      flex-shrink: 0;
+    }
+    @keyframes pulse-dot {
+      0%,100% { opacity: 1; } 50% { opacity: 0.4; }
+    }
+
+    .active-count {
+      font-size: 0.8rem;
+      color: #94a3b8;
+    }
+
+    /* ── Demo button ── */
+    .demo-group { position: relative; margin-left: auto; }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: 10px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #7c3aed, #2563eb);
+      color: #fff;
+      box-shadow: 0 0 16px rgba(124,58,237,0.4);
+    }
+    .btn-primary:hover { filter: brightness(1.15); transform: translateY(-1px); }
+
+    .btn-ghost {
+      background: rgba(255,255,255,0.06);
+      color: #cbd5e1;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .btn-ghost:hover { background: rgba(255,255,255,0.1); }
+
+    .dropdown {
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      min-width: 240px;
+      background: #111827;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 6px;
+      z-index: 999;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+      display: none;
+    }
+    .dropdown.open { display: block; animation: fade-down 0.15s ease; }
+    @keyframes fade-down {
+      from { opacity: 0; transform: translateY(-6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .dropdown-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.83rem;
+      color: #e2e8f0;
+      transition: background 0.1s;
+    }
+    .dropdown-item:hover { background: rgba(255,255,255,0.08); }
+    .dropdown-item .item-desc { font-size: 0.72rem; color: #64748b; }
+
+    /* ── Main layout ── */
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      grid-template-rows: 1fr auto;
+      gap: 16px;
+      padding: 16px;
+      overflow: hidden;
+    }
+
+    /* ── Runs panel ── */
+    #runs-panel {
+      grid-column: 1 / -1;
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+      padding: 0;
+    }
+    #runs-panel.open {
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    .runs-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #94a3b8;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      cursor: pointer;
+      user-select: none;
+      border-top: 1px solid rgba(255,255,255,0.07);
+    }
+    .runs-header:hover { color: #e2e8f0; }
+    .runs-toggle-icon { transition: transform 0.2s; }
+    .runs-panel-inner {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding: 0 8px 10px;
+    }
+    .run-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 7px 10px;
+      border-radius: 6px;
+      font-size: 0.78rem;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: background 0.15s;
+    }
+    .run-item:hover { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.1); }
+    .run-item.active { background: rgba(99,102,241,0.12); border-color: rgba(99,102,241,0.35); }
+    .run-id { color: #64748b; font-family: monospace; font-size: 0.72rem; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .run-ts { color: #475569; font-size: 0.72rem; white-space: nowrap; }
+    .run-count { background: rgba(255,255,255,0.07); border-radius: 99px; padding: 1px 7px; color: #94a3b8; white-space: nowrap; }
+    .run-status { font-size: 0.7rem; padding: 1px 6px; border-radius: 99px; white-space: nowrap; }
+    .run-status.done    { background: rgba(34,197,94,0.15); color: #4ade80; }
+    .run-status.active  { background: rgba(234,179,8,0.15);  color: #fbbf24; }
+    .run-status.error   { background: rgba(239,68,68,0.15);  color: #f87171; }
+
+    /* ── Graph panel ── */
+    #graph-panel {
+      position: relative;
+      overflow: hidden;
+    }
+
+    #graph-svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    .node-group { cursor: default; }
+
+    .node-circle {
+      transition: fill 0.4s ease, filter 0.4s ease;
+      filter: drop-shadow(0 0 8px rgba(255,255,255,0.1));
+    }
+
+    .node-label {
+      fill: #e2e8f0;
+      font-size: 11px;
+      font-weight: 600;
+      pointer-events: none;
+      text-anchor: middle;
+    }
+
+    .node-emoji {
+      font-size: 16px;
+      dominant-baseline: middle;
+      text-anchor: middle;
+      pointer-events: none;
+    }
+
+    .node-role {
+      fill: #64748b;
+      font-size: 9px;
+      text-anchor: middle;
+      pointer-events: none;
+    }
+
+    /* edge colours */
+    .link {
+      fill: none;
+      stroke: rgba(148,163,184,0.25);
+      stroke-width: 1.5;
+    }
+    .link.active {
+      stroke: #a78bfa;
+      stroke-width: 2;
+      stroke-dasharray: 6 3;
+      animation: dash-flow 1s linear infinite;
+    }
+    @keyframes dash-flow {
+      to { stroke-dashoffset: -18; }
+    }
+
+    /* node state colours */
+    .node--idle    .node-circle { fill: rgba(71,85,105,0.7); }
+    .node--working .node-circle { fill: rgba(234,179,8,0.85);  filter: drop-shadow(0 0 12px rgba(234,179,8,0.6)); }
+    .node--done    .node-circle { fill: rgba(34,197,94,0.85);  filter: drop-shadow(0 0 12px rgba(34,197,94,0.5)); }
+    .node--error   .node-circle { fill: rgba(239,68,68,0.85);  filter: drop-shadow(0 0 12px rgba(239,68,68,0.6)); }
+    .node--spawn   .node-circle { fill: rgba(99,102,241,0.85); filter: drop-shadow(0 0 12px rgba(99,102,241,0.5)); }
+
+    .node-enter { animation: pop-in 0.4s cubic-bezier(0.175,0.885,0.32,1.275) forwards; }
+    @keyframes pop-in {
+      from { opacity: 0; transform: scale(0.3); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+
+    /* ── Feed panel ── */
+    #feed-panel {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .feed-header {
+      padding: 14px 16px 10px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #475569;
+      flex-shrink: 0;
+    }
+
+    #feed-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0 12px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      scroll-behavior: smooth;
+    }
+
+    #feed-list::-webkit-scrollbar { width: 4px; }
+    #feed-list::-webkit-scrollbar-track { background: transparent; }
+    #feed-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+    .feed-item {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.05);
+      font-size: 0.78rem;
+      animation: slide-in-right 0.25s ease forwards;
+      opacity: 0;
+      transform: translateX(20px);
+    }
+    @keyframes slide-in-right {
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    .feed-item-top {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .feed-agent-name {
+      font-weight: 700;
+      color: #c4b5fd;
+    }
+
+    .feed-type-badge {
+      font-size: 0.65rem;
+      padding: 2px 7px;
+      border-radius: 99px;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .badge--spawn   { background: rgba(99,102,241,0.25); color: #818cf8; }
+    .badge--working { background: rgba(234,179,8,0.25);  color: #fbbf24; }
+    .badge--done    { background: rgba(34,197,94,0.25);  color: #4ade80; }
+    .badge--error   { background: rgba(239,68,68,0.25);  color: #f87171; }
+    .badge--message { background: rgba(148,163,184,0.2); color: #94a3b8; }
+
+    .feed-ts {
+      margin-left: auto;
+      font-size: 0.67rem;
+      color: #475569;
+      flex-shrink: 0;
+    }
+
+    .feed-msg {
+      color: #94a3b8;
+      font-size: 0.75rem;
+      padding-left: 2px;
+    }
+
+    .feed-task {
+      color: #60a5fa;
+      font-size: 0.72rem;
+      font-style: italic;
+      padding-left: 2px;
+    }
+
+    /* ── Legend ── */
+    .legend {
+      display: flex;
+      gap: 14px;
+      padding: 10px 16px;
+      font-size: 0.68rem;
+      color: #64748b;
+      flex-shrink: 0;
+      flex-wrap: wrap;
+    }
+    .legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 4px;
+      vertical-align: middle;
+    }
+
+    /* ── WS status ── */
+    .ws-status {
+      font-size: 0.7rem;
+      padding: 2px 10px;
+      border-radius: 99px;
+      font-weight: 600;
+    }
+    .ws-connected    { background: rgba(34,197,94,0.15); color: #4ade80; }
+    .ws-connecting   { background: rgba(234,179,8,0.15); color: #fbbf24; }
+    .ws-disconnected { background: rgba(239,68,68,0.15); color: #f87171; }
+
+    /* ── empty state ── */
+    .empty-graph {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #334155;
+      font-size: 0.85rem;
+      pointer-events: none;
+      gap: 8px;
+    }
+    .empty-graph .big { font-size: 3rem; }
+    /* ── Zoom controls ── */
+    .zoom-controls {
+      position: absolute;
+      bottom: 12px;
+      right: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      z-index: 10;
+    }
+    .btn-zoom {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.07);
+      color: #94a3b8;
+      font-size: 0.85rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+      transition: background 0.15s, color 0.15s;
+      padding: 0;
+    }
+    .btn-zoom:hover { background: rgba(255,255,255,0.14); color: #e2e8f0; }
+
+    /* ── Detail modal ── */
+    #detail-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(4px);
+      align-items: center;
+      justify-content: center;
+    }
+    #detail-overlay.open {
+      display: flex;
+    }
+    #detail-modal {
+      background: #1e2130;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 24px;
+      min-width: 340px;
+      max-width: 520px;
+      width: 90vw;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+      color: #e2e8f0;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ─────────────────────────────────────────────────────────────── -->
+<header>
+  <span style="font-size:1.4rem; line-height:1;">🐉</span>
+  <span class="brand">Agent Swarm</span>
+  <div class="status-dot" id="ws-dot"></div>
+  <span class="active-count" id="active-count">0 active</span>
+  <span class="ws-status ws-connecting" id="ws-label">connecting…</span>
+
+  <div class="demo-group" id="demo-group">
+    <div style="display:flex; gap:8px;">
+      <button class="btn btn-primary" id="btn-random">▶ Random</button>
+      <button class="btn btn-ghost" id="btn-demo-toggle">Demo ▾</button>
+    </div>
+    <div class="dropdown" id="demo-dropdown">
+      <div class="dropdown-item" data-scenario="research-write">
+        <span style="font-size:1.1rem">🔍</span>
+        <div>
+          <div>Research + Write</div>
+          <div class="item-desc">Vesper researches, Cassia writes</div>
+        </div>
+      </div>
+      <div class="dropdown-item" data-scenario="design-review">
+        <span style="font-size:1.1rem">🏗️</span>
+        <div>
+          <div>Design + Review</div>
+          <div class="item-desc">Lorne designs, Piers reviews</div>
+        </div>
+      </div>
+      <div class="dropdown-item" data-scenario="sprint-plan">
+        <span style="font-size:1.1rem">📋</span>
+        <div>
+          <div>Sprint Planning</div>
+          <div class="item-desc">Senna defines requirements, Orla plans tasks</div>
+        </div>
+      </div>
+      <div class="dropdown-item" data-scenario="security-audit">
+        <span style="font-size:1.1rem">🛡️</span>
+        <div>
+          <div>Security Audit</div>
+          <div class="item-desc">Vael audits, Caden coordinates</div>
+        </div>
+      </div>
+      <div class="dropdown-item" data-scenario="product-launch">
+        <span style="font-size:1.1rem">🚀</span>
+        <div>
+          <div>Product Launch Pipeline</div>
+          <div class="item-desc">6 agents: research, PM, arch, security, writing</div>
+        </div>
+      </div>
+      <div class="dropdown-item" data-scenario="incident-response">
+        <span style="font-size:1.1rem">🚨</span>
+        <div>
+          <div>Incident Response</div>
+          <div class="item-desc">6 agents: triage, diagnose, hotfix, post-mortem</div>
+        </div>
+      </div>
+      <div style="padding: 8px 12px 6px; border-top: 1px solid rgba(255,255,255,0.06); margin-top:4px;">
+        <span style="font-size:0.7rem; color:#92400e; background:#451a03; border:1px solid #78350f; border-radius:4px; padding:3px 7px;">⚠ Demos consume tokens on your instance</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ── Main ───────────────────────────────────────────────────────────────── -->
+<main>
+  <!-- Graph -->
+  <div class="glass" id="graph-panel">
+    <div class="empty-graph" id="empty-graph">
+      <span class="big">🐉</span>
+      <span>Run a demo to see agents in action</span>
+    </div>
+    <svg id="graph-svg"></svg>
+    <div class="zoom-controls">
+      <button class="btn-zoom" id="btn-zoom-in"  title="Zoom in">+</button>
+      <button class="btn-zoom" id="btn-zoom-reset" title="Reset zoom">⊙</button>
+      <button class="btn-zoom" id="btn-zoom-out" title="Zoom out">−</button>
+    </div>
+  </div>
+
+  <!-- Feed -->
+  <div class="glass" id="feed-panel">
+    <div class="feed-header">Activity Feed</div>
+    <div id="feed-list"></div>
+    <div class="legend">
+      <span><span class="legend-dot" style="background:#6366f1"></span>spawn</span>
+      <span><span class="legend-dot" style="background:#eab308"></span>working</span>
+      <span><span class="legend-dot" style="background:#22c55e"></span>done</span>
+      <span><span class="legend-dot" style="background:#ef4444"></span>error</span>
+    </div>
+  </div>
+  <!-- Runs history -->
+  <div class="glass" id="runs-panel-wrap" style="grid-column: 1 / -1; padding: 0; overflow: hidden;">
+    <div class="runs-header" id="runs-toggle">
+      <span>📜 Run History</span>
+      <span id="runs-toggle-icon" class="runs-toggle-icon">▾</span>
+    </div>
+    <div id="runs-panel">
+      <div class="runs-panel-inner" id="runs-list"></div>
+    </div>
+  </div>
+</main>
+
+<!-- Event detail modal -->
+<div id="detail-overlay">
+  <div id="detail-modal"></div>
+</div>
+
+<script>
+// ── Constants & helpers ──────────────────────────────────────────────────────
+const SCENARIOS = ["research-write","design-review","sprint-plan","security-audit","product-launch","incident-response"];
+const NODE_RADIUS = 28;
+const FADE_MS = 30_000;
+
+function fmtTime(ms) {
+  const d = new Date(ms);
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+// ── State ────────────────────────────────────────────────────────────────────
+const nodeMap   = new Map(); // sessionId → { id, name, role, emoji, state, lastTs }
+const edgeSet   = new Set(); // "sourceId|targetId"
+const fadeTimers = new Map(); // sessionId → timeout id
+
+// ── Graph setup ──────────────────────────────────────────────────────────────
+const svg  = d3.select("#graph-svg");
+const gAll = svg.append("g").attr("class","graph-root");
+const gLinks = gAll.append("g").attr("class","links");
+const gNodes = gAll.append("g").attr("class","nodes");
+
+// ── Zoom ──────────────────────────────────────────────────────────────────────
+const zoom = d3.zoom()
+  .scaleExtent([0.2, 4])
+  .on("zoom", e => gAll.attr("transform", e.transform));
+svg.call(zoom);
+svg.on("dblclick.zoom", null);
+
+function zoomBy(factor) {
+  svg.transition().duration(250).call(zoom.scaleBy, factor);
+}
+function zoomReset() {
+  svg.transition().duration(350).call(
+    zoom.transform,
+    d3.zoomIdentity.translate(width / 2, height / 2).scale(1).translate(-width / 2, -height / 2)
+  );
+}
+
+document.getElementById("btn-zoom-in")   .addEventListener("click", () => zoomBy(1.4));
+document.getElementById("btn-zoom-out")  .addEventListener("click", () => zoomBy(1 / 1.4));
+document.getElementById("btn-zoom-reset").addEventListener("click", zoomReset);
+
+const simulation = d3.forceSimulation()
+  .force("charge", d3.forceManyBody().strength(-160))
+  .force("link",   d3.forceLink().id(d => d.id).distance(100).strength(0.7))
+  .force("collision", d3.forceCollide(NODE_RADIUS + 14))
+  .alphaDecay(0.04)
+  .velocityDecay(0.45);
+
+let width = 0, height = 0;
+
+function resizeGraph() {
+  const el = document.getElementById("graph-panel");
+  width  = el.clientWidth;
+  height = el.clientHeight;
+  svg.attr("viewBox", `0 0 ${width} ${height}`);
+  simulation.force("center", d3.forceCenter(width / 2, height / 2));
+  simulation.alpha(0.3).restart();
+}
+
+window.addEventListener("resize", resizeGraph);
+requestAnimationFrame(resizeGraph);
+
+function updateGraph() {
+  const nodes = Array.from(nodeMap.values());
+  const links = [];
+  for (const key of edgeSet) {
+    const [src, tgt] = key.split("|");
+    if (nodeMap.has(src) && nodeMap.has(tgt)) links.push({ source: src, target: tgt });
+  }
+
+  // -- Links
+  const linkSel = gLinks.selectAll("line.link")
+    .data(links, d => `${d.source.id ?? d.source}|${d.target.id ?? d.target}`);
+
+  linkSel.enter()
+    .append("line")
+    .attr("class", d => {
+      const tgt = typeof d.target === "object" ? d.target.id : d.target;
+      const tgtNode = nodeMap.get(tgt);
+      return "link" + (tgtNode?.state === "working" ? " active" : "");
+    });
+
+  linkSel.exit().remove();
+
+  // refresh active class on all links
+  gLinks.selectAll("line.link")
+    .classed("active", d => {
+      const tgt = typeof d.target === "object" ? d.target.id : d.target;
+      const tgtNode = nodeMap.get(tgt);
+      return tgtNode?.state === "working";
+    });
+
+  // -- Nodes
+  const nodeSel = gNodes.selectAll("g.node-group")
+    .data(nodes, d => d.id);
+
+  const nodeEnter = nodeSel.enter()
+    .append("g")
+    .attr("class", d => `node-group node--${d.state ?? "idle"} node-enter`)
+    .call(
+      d3.drag()
+        .on("start", (event, d) => { if (!event.active) simulation.alphaTarget(0.2).restart(); d.fx = d.x; d.fy = d.y; })
+        .on("drag",  (event, d) => { d.fx = event.x; d.fy = event.y; })
+        .on("end",   (event, d) => { if (!event.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; })
+    );
+
+  nodeEnter.append("circle")
+    .attr("class","node-circle")
+    .attr("r", d => d.agentId === "pip" ? NODE_RADIUS + 6 : NODE_RADIUS);
+
+  nodeEnter.append("text")
+    .attr("class","node-emoji")
+    .attr("y", -4)
+    .text(d => d.emoji ?? "🤖");
+
+  nodeEnter.append("text")
+    .attr("class","node-label")
+    .attr("y", 13)
+    .text(d => d.name);
+
+  nodeEnter.append("text")
+    .attr("class","node-role")
+    .attr("y", 24)
+    .text(d => truncate(d.role, 22));
+
+  // Update all nodes (enter + update) with current state class
+  gNodes.selectAll("g.node-group")
+    .attr("class", d => `node-group node--${d.state ?? "idle"}`);
+
+  // Remove entry animation class without clobbering state class
+  nodeEnter.on("animationend", function(event, d) {
+    d3.select(this).attr("class", `node-group node--${d.state ?? "idle"}`);
+  });
+
+  nodeSel.exit()
+    .transition().duration(600)
+    .style("opacity", 0)
+    .remove();
+
+  // Feed force simulation
+  simulation
+    .nodes(nodes)
+    .on("tick", () => {
+      gLinks.selectAll("line.link")
+        .attr("x1", d => (d.source.x ?? 0))
+        .attr("y1", d => (d.source.y ?? 0))
+        .attr("x2", d => (d.target.x ?? 0))
+        .attr("y2", d => (d.target.y ?? 0));
+
+      gNodes.selectAll("g.node-group")
+        .attr("transform", d => `translate(${d.x ?? 0},${d.y ?? 0})`);
+    });
+
+  simulation.force("link").links(links);
+  // Scale charge by node count to avoid explosive repulsion with many nodes
+  const chargeStr = nodes.length > 6 ? -120 : -160;
+  simulation.force("charge").strength(chargeStr);
+  simulation.alpha(0.35).restart();
+
+  // Empty state
+  document.getElementById("empty-graph").style.display = nodes.length ? "none" : "";
+
+  // Active count
+  const active = nodes.filter(n => n.state === "working" || n.state === "spawn").length;
+  document.getElementById("active-count").textContent = `${active} active`;
+}
+
+function truncate(s, n) { return s.length > n ? s.slice(0, n - 1) + "…" : s; }
+
+// ── Feed ─────────────────────────────────────────────────────────────────────
+const feedList = document.getElementById("feed-list");
+const MAX_FEED = 80;
+
+function addFeedItem(ev) {
+  const item = document.createElement("div");
+  item.className = "feed-item";
+
+  const emoji = ev.agent?.emoji ?? "🤖";
+  const name  = ev.agent?.name  ?? ev.agent?.id ?? "?";
+  const type  = ev.type;
+  const msg   = ev.message ?? "";
+  const task  = ev.task ?? "";
+
+  item.innerHTML = `
+    <div class="feed-item-top">
+      <span>${emoji}</span>
+      <span class="feed-agent-name">${name}</span>
+      <span class="feed-type-badge badge--${type}">${type}</span>
+      <span class="feed-ts">${fmtTime(ev.ts)}</span>
+    </div>
+    ${task ? `<div class="feed-task">⟶ ${task}</div>` : ""}
+    ${msg  ? `<div class="feed-msg">${msg}</div>` : ""}
+  `;
+
+  item.style.cursor = "pointer";
+  item.addEventListener("click", () => showEventDetail(ev));
+
+  feedList.prepend(item);
+
+  // cap
+  while (feedList.children.length > MAX_FEED) feedList.lastChild.remove();
+}
+
+// ── Event processor ──────────────────────────────────────────────────────────
+function processEventGraph(ev) {
+  const sid = ev.sessionId;
+  const pid = ev.parentId;
+
+  let node = nodeMap.get(sid);
+  if (!node) {
+    node = {
+      id:      sid,
+      agentId: ev.agent.id,
+      name:    ev.agent.name,
+      role:    ev.agent.role,
+      emoji:   ev.agent.emoji,
+      state:   "idle",
+      lastTs:  ev.ts,
+    };
+    nodeMap.set(sid, node);
+  }
+
+  if (ev.type === "spawn")   node.state = "spawn";
+  if (ev.type === "working") node.state = "working";
+  if (ev.type === "done")    node.state = "done";
+  if (ev.type === "error")   node.state = "error";
+  node.lastTs = ev.ts;
+
+  if (pid) {
+    if (!nodeMap.has(pid)) {
+      nodeMap.set(pid, {
+        id: pid, agentId: "pip",
+        name: "Pip", role: "Orchestrator", emoji: "🐉",
+        state: "idle", lastTs: ev.ts,
+      });
+    }
+    edgeSet.add(`${pid}|${sid}`);
+  }
+}
+
+function processEvent(ev) {
+  // A root spawn (no parentId) signals a new run — clear stale nodes
+  if (ev.type === "spawn" && !ev.parentId) {
+    for (const t of fadeTimers.values()) clearTimeout(t);
+    fadeTimers.clear();
+    nodeMap.clear();
+    edgeSet.clear();
+    simulation.stop();
+    simulation.nodes([]);
+    gNodes.selectAll("g.node-group").remove();
+    gLinks.selectAll("line.link").remove();
+  }
+
+  processEventGraph(ev);
+
+  // Fade-out timer for done nodes (live view only)
+  const sid = ev.sessionId;
+  if (ev.type === "done" || ev.type === "error") {
+    if (fadeTimers.has(sid)) clearTimeout(fadeTimers.get(sid));
+    const t = setTimeout(() => {
+      nodeMap.delete(sid);
+      for (const k of edgeSet) { if (k.includes(sid)) edgeSet.delete(k); }
+      fadeTimers.delete(sid);
+      updateGraph();
+    }, FADE_MS);
+    fadeTimers.set(sid, t);
+  }
+
+  addFeedItem(ev);
+  updateGraph();
+}
+
+// ── WebSocket ─────────────────────────────────────────────────────────────────
+let ws = null;
+let wsRetryDelay = 1000;
+const wsLabel = document.getElementById("ws-label");
+const wsDot   = document.getElementById("ws-dot");
+
+function setWsStatus(s) {
+  wsLabel.className = `ws-status ws-${s}`;
+  wsLabel.textContent = s === "connected" ? "live" : s === "connecting" ? "connecting…" : "disconnected";
+  wsDot.style.background = s === "connected" ? "#22c55e" : s === "connecting" ? "#eab308" : "#ef4444";
+  wsDot.style.boxShadow  = `0 0 8px ${s === "connected" ? "#22c55e" : s === "connecting" ? "#eab308" : "#ef4444"}`;
+}
+
+function connectWS() {
+  setWsStatus("connecting");
+  const proto = location.protocol === "https:" ? "wss" : "ws";
+  const basePath = location.pathname.endsWith("/") ? location.pathname.slice(0, -1) : location.pathname;
+  ws = new WebSocket(`${proto}://${location.host}${basePath}/ws`);
+
+  ws.onopen = () => {
+    setWsStatus("connected");
+    wsRetryDelay = 1000;
+    // Load current state
+    const base = location.pathname.endsWith("/") ? location.pathname.slice(0, -1) : location.pathname;
+    fetch(`${base}/api/events`)
+      .then(r => r.json())
+      .then(data => { (data.events ?? []).forEach(processEvent); });
+  };
+
+  ws.onmessage = e => {
+    try { processEvent(JSON.parse(e.data)); } catch {}
+  };
+
+  ws.onclose = () => {
+    setWsStatus("disconnected");
+    setTimeout(connectWS, wsRetryDelay);
+    wsRetryDelay = Math.min(wsRetryDelay * 2, 30_000);
+  };
+
+  ws.onerror = () => ws.close();
+}
+
+connectWS();
+
+// ── Run history ──────────────────────────────────────────────────────────────
+const runsPanel    = document.getElementById("runs-panel");
+const runsList     = document.getElementById("runs-list");
+const runsToggle   = document.getElementById("runs-toggle");
+const runsIcon     = document.getElementById("runs-toggle-icon");
+let runsOpen = false;
+
+runsToggle.addEventListener("click", () => {
+  runsOpen = !runsOpen;
+  runsPanel.classList.toggle("open", runsOpen);
+  runsIcon.style.transform = runsOpen ? "rotate(180deg)" : "";
+  if (runsOpen) loadRuns();
+});
+
+function fmtDate(ts) {
+  if (!ts) return "";
+  const d = new Date(ts);
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" })
+    + " " + d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+}
+
+async function loadRuns() {
+  const base = location.pathname.endsWith("/") ? location.pathname.slice(0, -1) : location.pathname;
+  const data = await fetch(`${base}/api/runs`).then(r => r.json()).catch(() => ({ runs: [] }));
+  const all  = [...(data.runs ?? [])].reverse(); // newest first
+  runsList.innerHTML = "";
+  if (!all.length) {
+    runsList.innerHTML = `<div style="color:#475569;font-size:0.78rem;padding:8px 10px;">No runs yet — start a demo or send events.</div>`;
+    return;
+  }
+  all.forEach(run => {
+    const div      = document.createElement("div");
+    div.className  = "run-item";
+    const status   = run.endedAt ? "done" : "active";
+    const evCount  = run.events?.length ?? 0;
+    const rootEv   = run.events?.[0];
+    const task     = rootEv?.task ?? rootEv?.agent?.name ?? run.runId.slice(0, 16);
+    div.innerHTML  = `
+      <span class="run-status ${status}">${status}</span>
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.8rem">${task}</span>
+      <span class="run-count">${evCount} events</span>
+      <span class="run-ts">${fmtDate(run.startedAt)}</span>
+    `;
+    div.title = run.runId;
+    div.addEventListener("click", () => replayRun(run, div));
+    runsList.appendChild(div);
+  });
+}
+
+function replayRun(run, el) {
+  // Highlight selected
+  runsList.querySelectorAll(".run-item").forEach(i => i.classList.remove("active"));
+  el.classList.add("active");
+  // Clear current view and replay events
+  // Cancel any live fade timers and reset state
+  for (const t of fadeTimers.values()) clearTimeout(t);
+  fadeTimers.clear();
+  nodeMap.clear();
+  edgeSet.clear();
+  // Stop simulation and remove all existing DOM nodes cleanly
+  simulation.stop();
+  gNodes.selectAll("g.node-group").remove();
+  gLinks.selectAll("line.link").remove();
+  document.getElementById("feed-list").innerHTML = "";
+  document.getElementById("active-count").textContent = "0 active";
+  (run.events ?? []).forEach(ev => {
+    addFeedItem(ev);
+    processEventGraph(ev);
+  });
+  updateGraph();
+}
+
+// ── Event detail modal ───────────────────────────────────────────────────────
+const detailOverlay = document.getElementById("detail-overlay");
+const detailModal   = document.getElementById("detail-modal");
+
+detailOverlay.addEventListener("click", e => { if (e.target === detailOverlay) detailOverlay.classList.remove("open"); });
+document.addEventListener("keydown", e => { if (e.key === "Escape") detailOverlay.classList.remove("open"); });
+
+const TYPE_COLOURS = {
+  spawn: "#6366f1", working: "#eab308", done: "#22c55e",
+  error: "#ef4444", message: "#94a3b8",
+};
+
+function detailRow(label, value) {
+  if (value === undefined || value === null || value === "") return "";
+  return `<div style="display:flex;gap:12px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.06)">
+    <span style="color:#64748b;font-size:0.78rem;min-width:90px;flex-shrink:0;padding-top:1px">${label}</span>
+    <span style="font-size:0.82rem;word-break:break-all">${value}</span>
+  </div>`;
+}
+
+function showEventDetail(ev) {
+  const colour = TYPE_COLOURS[ev.type] ?? "#94a3b8";
+  const emoji  = ev.agent?.emoji ?? "🤖";
+  const ts     = ev.ts ? new Date(ev.ts).toLocaleString() : "";
+  detailModal.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+      <span style="font-size:1.5rem">${emoji}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:600;font-size:1rem">${ev.agent?.name ?? ev.agent?.id ?? "?"}</div>
+        <div style="font-size:0.75rem;color:#64748b">${ev.agent?.role ?? ""}</div>
+      </div>
+      <span style="padding:3px 10px;border-radius:99px;font-size:0.75rem;font-weight:600;background:${colour}22;color:${colour};border:1px solid ${colour}55;white-space:nowrap">${ev.type}</span>
+      <button id="detail-close" style="background:none;border:none;color:#64748b;cursor:pointer;font-size:1.3rem;padding:0 2px;line-height:1;flex-shrink:0">✕</button>
+    </div>
+    <div style="font-size:0.82rem">
+      ${detailRow("Agent ID",  ev.agent?.id)}
+      ${detailRow("Task",      ev.task)}
+      ${detailRow("Message",   ev.message)}
+      ${detailRow("Session",   ev.sessionId)}
+      ${detailRow("Parent",    ev.parentId)}
+      ${detailRow("Timestamp", ts)}
+      ${detailRow("Event ID",  ev.id)}
+    </div>
+  `;
+  document.getElementById("detail-close").addEventListener("click", () => detailOverlay.classList.remove("open"));
+  detailOverlay.classList.add("open");
+}
+
+// ── Demo controls ────────────────────────────────────────────────────────────
+const dropdown = document.getElementById("demo-dropdown");
+document.getElementById("btn-demo-toggle").addEventListener("click", e => {
+  e.stopPropagation();
+  dropdown.classList.toggle("open");
+});
+
+document.addEventListener("click", () => dropdown.classList.remove("open"));
+dropdown.addEventListener("click", e => e.stopPropagation());
+
+dropdown.querySelectorAll(".dropdown-item").forEach(item => {
+  item.addEventListener("click", () => {
+    const scenario = item.dataset.scenario;
+    postDemo(scenario);
+    dropdown.classList.remove("open");
+  });
+});
+
+document.getElementById("btn-random").addEventListener("click", () => {
+  const s = SCENARIOS[Math.floor(Math.random() * SCENARIOS.length)];
+  postDemo(s);
+});
+
+function postDemo(scenario) {
+  const base = location.pathname.endsWith("/") ? location.pathname.slice(0, -1) : location.pathname;
+  fetch(`${base}/api/demo`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ scenario }),
+  }).catch(console.error);
+}
+</script>
+</body>
+</html>

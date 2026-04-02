@@ -1,0 +1,16 @@
+[Unit]
+Description=Agent Swarm Dashboard
+After=network.target
+
+[Service]
+Type=simple
+User=andyb
+WorkingDirectory=/home/andyb/src/agent-swarm-dashboard
+ExecStart=/home/andyb/.bun/bin/bun run src/server.ts
+Restart=always
+RestartSec=5
+Environment=PORT=3457
+Environment=DB_PATH=/home/andyb/src/agent-swarm-dashboard/data/swarm.db
+
+[Install]
+WantedBy=multi-user.target
