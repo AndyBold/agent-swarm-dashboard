@@ -3,10 +3,68 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>🐉 Agent Swarm</title>
+  <title>🐉 AI Ops Centre</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://d3js.org/d3.v7.min.js"></script>
   <style>
+    /* ── Present Mode ── */
+    .present-btn {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: #cbd5e1;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 0.78rem;
+      cursor: pointer;
+      margin-left: 12px;
+      transition: all 0.15s;
+    }
+    .present-btn:hover {
+      background: rgba(255,255,255,0.1);
+    }
+    body.present-mode .demo-group,
+    body.present-mode #feed-panel,
+    body.present-mode #runs-panel-wrap,
+    body.present-mode .zoom-controls,
+    body.present-mode .metrics-strip,
+    body.present-mode .feed-type-badge,
+    body.present-mode .feed-ts,
+    body.present-mode .feed-task,
+    body.present-mode .feed-msg,
+    body.present-mode .node-role,
+    body.present-mode .active-count,
+    body.present-mode .ws-status {
+      display: none !important;
+    }
+    body.present-mode #graph-panel {
+      grid-column: 1 / -1;
+    }
+    body.present-mode #caption-strip {
+      background: transparent;
+      border: none;
+    }
+    body.present-mode header {
+      background: transparent;
+      border: none;
+    }
+    .exit-present {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      z-index: 9999;
+      display: none;
+      background: rgba(239, 68, 68, 0.8);
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+    body.present-mode .exit-present {
+      display: block;
+    }
+
     /* ── Base ── */
     *, *::before, *::after { box-sizing: border-box; }
 
@@ -348,6 +406,39 @@
       flex-shrink: 0;
     }
 
+    /* ── Business Value Card ── */
+    #value-card {
+      display: none;
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      right: 16px;
+      background: linear-gradient(135deg, rgba(99,102,241,0.15), rgba(168,85,247,0.1));
+      border: 1px solid rgba(168,85,247,0.3);
+      border-radius: 12px;
+      padding: 12px 16px;
+      z-index: 5;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+    #value-card.visible {
+      display: block;
+      animation: fade-down 0.3s ease;
+    }
+    .value-card-header {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #c4b5fd;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 4px;
+    }
+    .value-card-text {
+      font-size: 0.9rem;
+      color: #e2e8f0;
+      font-weight: 500;
+    }
+
     .feed-msg {
       color: #94a3b8;
       font-size: 0.75rem;
@@ -391,6 +482,51 @@
     .ws-connecting   { background: rgba(234,179,8,0.15); color: #fbbf24; }
     .ws-disconnected { background: rgba(239,68,68,0.15); color: #f87171; }
 
+    /* ── Metrics Strip ── */
+    .metrics-strip {
+      display: flex;
+      gap: 20px;
+      padding: 8px 24px;
+      background: rgba(10,13,20,0.6);
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      font-size: 0.75rem;
+      color: #64748b;
+    }
+    .metric {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .metric-value {
+      font-weight: 600;
+      color: #e2e8f0;
+    }
+    .metric-label {
+      color: #64748b;
+    }
+
+    /* ── Caption strip ── */
+    #caption-strip {
+      height: 60px;
+      overflow: hidden;
+      background: rgba(10,13,20,0.6);
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      padding: 0 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      flex-shrink: 0;
+    }
+    .caption-line {
+      font-size: 0.78rem;
+      color: #94a3b8;
+      line-height: 1.7;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .caption-line:first-child { color: #e2e8f0; font-weight: 600; }
+
     /* ── empty state ── */
     .empty-graph {
       position: absolute;
@@ -433,6 +569,107 @@
     }
     .btn-zoom:hover { background: rgba(255,255,255,0.14); color: #e2e8f0; }
 
+    /* ── Agent Detail Drawer ── */
+    #agent-drawer {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 320px;
+      height: 100vh;
+      background: rgba(17, 19, 28, 0.95);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      border-left: 1px solid rgba(255,255,255,0.1);
+      z-index: 1001;
+      transform: translateX(100%);
+      transition: transform 0.3s ease;
+      display: flex;
+      flex-direction: column;
+    }
+    #agent-drawer.open {
+      transform: translateX(0);
+    }
+    .drawer-header {
+      padding: 20px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .drawer-emoji {
+      font-size: 2rem;
+    }
+    .drawer-title {
+      flex: 1;
+    }
+    .drawer-name {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #e2e8f0;
+    }
+    .drawer-role {
+      font-size: 0.8rem;
+      color: #94a3b8;
+    }
+    .drawer-close {
+      background: none;
+      border: none;
+      color: #64748b;
+      font-size: 1.5rem;
+      cursor: pointer;
+      padding: 0;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      transition: background 0.15s;
+    }
+    .drawer-close:hover {
+      background: rgba(255,255,255,0.08);
+      color: #e2e8f0;
+    }
+    .drawer-content {
+      padding: 20px;
+      flex: 1;
+      overflow-y: auto;
+    }
+    .drawer-stat {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .drawer-stat:last-child {
+      border-bottom: none;
+    }
+    .drawer-stat-label {
+      font-size: 0.8rem;
+      color: #64748b;
+    }
+    .drawer-stat-value {
+      font-size: 1rem;
+      font-weight: 500;
+      color: #e2e8f0;
+      margin-left: auto;
+    }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 99px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .status-spawn { background: rgba(99,102,241,0.25); color: #818cf8; }
+    .status-working { background: rgba(234,179,8,0.25); color: #fbbf24; }
+    .status-done { background: rgba(34,197,94,0.25); color: #4ade80; }
+    .status-error { background: rgba(239,68,68,0.25); color: #f87171; }
+    .status-idle { background: rgba(71,85,105,0.5); color: #64748b; }
+
     /* ── Detail modal ── */
     #detail-overlay {
       display: none;
@@ -467,10 +704,11 @@
 <!-- ── Header ─────────────────────────────────────────────────────────────── -->
 <header>
   <span style="font-size:1.4rem; line-height:1;">🐉</span>
-  <span class="brand">Agent Swarm</span>
+  <span class="brand">AI Ops Centre</span>
   <div class="status-dot" id="ws-dot"></div>
   <span class="active-count" id="active-count">0 active</span>
   <span class="ws-status ws-connecting" id="ws-label">connecting…</span>
+  <button class="present-btn" id="btn-present">🎬 Present</button>
 
   <div class="demo-group" id="demo-group">
     <div style="display:flex; gap:8px;">
@@ -520,17 +758,73 @@
           <div class="item-desc">6 agents: triage, diagnose, hotfix, post-mortem</div>
         </div>
       </div>
-      <div style="padding: 8px 12px 6px; border-top: 1px solid rgba(255,255,255,0.06); margin-top:4px;">
-        <span style="font-size:0.7rem; color:#92400e; background:#451a03; border:1px solid #78350f; border-radius:4px; padding:3px 7px;">⚠ Demos consume tokens on your instance</span>
+      <div class="dropdown-item" data-scenario="the-3am-problem">
+        <span style="font-size:1.1rem">🚨</span>
+        <div>
+          <div>The 3am Problem</div>
+          <div class="item-desc">Incident response — 14 min MTTR</div>
+        </div>
       </div>
-    </div>
+      <div class="dropdown-item" data-scenario="from-brief-to-launch">
+        <span style="font-size:1.1rem">🚀</span>
+        <div>
+          <div>From Brief to Launch</div>
+          <div class="item-desc">Product launch pipeline — 3–5 days in 90s</div>
+        </div>
+      </div>
+      <div class="dropdown-item" data-scenario="strategic-brief">
+        <span style="font-size:1.1rem">📊</span>
+        <div>
+          <div>The Strategic Brief</div>
+          <div class="item-desc">Market entry research — weeks to minutes</div>
+        </div>
+      </div>
+      <div class="dropdown-item" data-scenario="error-recovery">
+        <span style="font-size:1.1rem">🔄</span>
+        <div>
+          <div>Error Recovery</div>
+          <div class="item-desc">Fault tolerance — backup agent routing</div>
+        </div>
+      </div>
   </div>
+</div>
 </header>
+
+<!-- ── Caption strip ──────────────────────────────────────────────────────── -->
+<div id="caption-strip">
+  <div class="caption-line" id="cap-line-0"></div>
+  <div class="caption-line" id="cap-line-1"></div>
+  <div class="caption-line" id="cap-line-2"></div>
+</div>
+
+<!-- ── Metrics Strip ───────────────────────────────────────────────────────── -->
+<div class="metrics-strip" id="metrics-strip">
+  <div class="metric">
+    <span class="metric-label">Events:</span>
+    <span class="metric-value" id="metric-events">0</span>
+  </div>
+  <div class="metric">
+    <span class="metric-label">Active:</span>
+    <span class="metric-value" id="metric-active">0</span>
+  </div>
+  <div class="metric">
+    <span class="metric-label">Completed:</span>
+    <span class="metric-value" id="metric-completed">0</span>
+  </div>
+  <div class="metric">
+    <span class="metric-label">Uptime:</span>
+    <span class="metric-value" id="metric-uptime">0s</span>
+  </div>
+</div>
 
 <!-- ── Main ───────────────────────────────────────────────────────────────── -->
 <main>
   <!-- Graph -->
   <div class="glass" id="graph-panel">
+    <div id="value-card">
+      <div class="value-card-header" id="value-card-title"></div>
+      <div class="value-card-text" id="value-card-text"></div>
+    </div>
     <div class="empty-graph" id="empty-graph">
       <span class="big">🐉</span>
       <span>Run a demo to see agents in action</span>
@@ -566,6 +860,35 @@
   </div>
 </main>
 
+<!-- Exit present button -->
+<button class="exit-present" id="btn-exit-present">✕ Exit Present</button>
+
+<!-- Agent detail drawer -->
+<div id="agent-drawer">
+  <div class="drawer-header">
+    <span class="drawer-emoji" id="drawer-emoji">🤖</span>
+    <div class="drawer-title">
+      <div class="drawer-name" id="drawer-name">Agent</div>
+      <div class="drawer-role" id="drawer-role">Role</div>
+    </div>
+    <button class="drawer-close" id="drawer-close">✕</button>
+  </div>
+  <div class="drawer-content">
+    <div class="drawer-stat">
+      <span class="drawer-stat-label">Status</span>
+      <span class="drawer-stat-value" id="drawer-status"><span class="status-badge status-idle">● idle</span></span>
+    </div>
+    <div class="drawer-stat">
+      <span class="drawer-stat-label">Events processed</span>
+      <span class="drawer-stat-value" id="drawer-events">0</span>
+    </div>
+    <div class="drawer-stat">
+      <span class="drawer-stat-label">Last activity</span>
+      <span class="drawer-stat-value" id="drawer-activity">—</span>
+    </div>
+  </div>
+</div>
+
 <!-- Event detail modal -->
 <div id="detail-overlay">
   <div id="detail-modal"></div>
@@ -573,9 +896,33 @@
 
 <script>
 // ── Constants & helpers ──────────────────────────────────────────────────────
-const SCENARIOS = ["research-write","design-review","sprint-plan","security-audit","product-launch","incident-response"];
+const SCENARIOS = ["research-write","design-review","sprint-plan","security-audit","product-launch","incident-response","the-3am-problem","from-brief-to-launch","strategic-brief","error-recovery"];
 const NODE_RADIUS = 28;
+
+// Business value propositions for each scenario
+const SCENARIO_VALUES = {
+  "research-write":     { title: "From Brief to Launch", value: "📅 Typical cycle: 3–5 days → under 2 minutes", icon: "📅" },
+  "design-review":      { title: "Design + Review", value: "📐 Review time: hours → minutes", icon: "📐" },
+  "sprint-plan":        { title: "Sprint Planning", value: "📋 Planning time: 2–3 days → under 5 minutes", icon: "📋" },
+  "security-audit":     { title: "Security Audit", value: "🔒 Audit cycle: 1–2 weeks → under 10 minutes", icon: "🔒" },
+  "product-launch":     { title: "From Brief to Launch", value: "📅 Typical cycle: 3–5 days → under 2 minutes", icon: "🚀" },
+  "incident-response":  { title: "The 3am Problem", value: "⚡ Mean time to resolution: 4+ hours → under 20 minutes", icon: "🚨" },
+  "the-3am-problem":    { title: "The 3am Problem", value: "⚡ Mean time to resolution: 4+ hours → under 20 minutes", icon: "⚡" },
+  "from-brief-to-launch": { title: "From Brief to Launch", value: "📅 Typical cycle: 3–5 days → under 2 minutes", icon: "📅" },
+  "strategic-brief":    { title: "The Strategic Brief", value: "💡 Research time: 2–4 weeks → under 3 minutes", icon: "💡" },
+  "error-recovery":     { title: "Error Recovery", value: "🔄 Backup routing: seconds, not hours", icon: "🔄" },
+};
 const FADE_MS = 30_000;
+
+function esc(s) {
+  if (s == null) return "";
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 
 function fmtTime(ms) {
   const d = new Date(ms);
@@ -586,6 +933,76 @@ function fmtTime(ms) {
 const nodeMap   = new Map(); // sessionId → { id, name, role, emoji, state, lastTs }
 const edgeSet   = new Set(); // "sourceId|targetId"
 const fadeTimers = new Map(); // sessionId → timeout id
+const agentEventCounts = {}; // sessionId → event count
+const agentLastActivity = {}; // sessionId → timestamp
+let selectedAgentId = null;
+let totalEvents = 0;
+let activeAgents = 0;
+let completedAgents = 0;
+let dashboardStartTime = Date.now();
+let drawerOpen = false;
+
+// ── Agent Detail Drawer ───────────────────────────────────────────────────────
+const agentDrawer = document.getElementById('agent-drawer');
+const drawerClose = document.getElementById('drawer-close');
+
+drawerClose.addEventListener('click', () => {
+  agentDrawer.classList.remove('open');
+  drawerOpen = false;
+  selectedAgentId = null;
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && drawerOpen) {
+    agentDrawer.classList.remove('open');
+    drawerOpen = false;
+    selectedAgentId = null;
+  }
+});
+
+function openAgentDrawer(sessionId) {
+  const node = nodeMap.get(sessionId);
+  if (!node) return;
+  
+  selectedAgentId = sessionId;
+  drawerOpen = true;
+  
+  document.getElementById('drawer-emoji').textContent = node.emoji ?? '🤖';
+  document.getElementById('drawer-name').textContent = node.name;
+  document.getElementById('drawer-role').textContent = node.role;
+  
+  updateDrawerStats(sessionId);
+  agentDrawer.classList.add('open');
+}
+
+function updateDrawerStats(sessionId) {
+  if (!selectedAgentId || selectedAgentId !== sessionId) return;
+  
+  const node = nodeMap.get(sessionId);
+  if (!node) return;
+  
+  const statusColors = {
+    spawn: { class: 'status-spawn', label: '● spawned' },
+    working: { class: 'status-working', label: '● working' },
+    done: { class: 'status-done', label: '● done' },
+    error: { class: 'status-error', label: '● error' },
+    idle: { class: 'status-idle', label: '● idle' },
+  };
+  
+  const status = statusColors[node.state ?? 'idle'] ?? statusColors.idle;
+  document.getElementById('drawer-status').innerHTML = `<span class="status-badge ${status.class}">${status.label}</span>`;
+  document.getElementById('drawer-events').textContent = agentEventCounts[sessionId] ?? 0;
+  
+  const lastTs = agentLastActivity[sessionId];
+  if (lastTs) {
+    const diff = Date.now() - lastTs;
+    if (diff < 1000) document.getElementById('drawer-activity').textContent = 'just now';
+    else if (diff < 60000) document.getElementById('drawer-activity').textContent = `${Math.floor(diff / 1000)}s ago`;
+    else document.getElementById('drawer-activity').textContent = `${Math.floor(diff / 60000)}m ago`;
+  } else {
+    document.getElementById('drawer-activity').textContent = '—';
+  }
+}
 
 // ── Graph setup ──────────────────────────────────────────────────────────────
 const svg  = d3.select("#graph-svg");
@@ -672,6 +1089,8 @@ function updateGraph() {
   const nodeEnter = nodeSel.enter()
     .append("g")
     .attr("class", d => `node-group node--${d.state ?? "idle"} node-enter`)
+    .style("cursor", "pointer")
+    .on("click", (event, d) => { event.stopPropagation(); openAgentDrawer(d.id); })
     .call(
       d3.drag()
         .on("start", (event, d) => { if (!event.active) simulation.alphaTarget(0.2).restart(); d.fx = d.x; d.fy = d.y; })
@@ -750,11 +1169,11 @@ function addFeedItem(ev) {
   const item = document.createElement("div");
   item.className = "feed-item";
 
-  const emoji = ev.agent?.emoji ?? "🤖";
-  const name  = ev.agent?.name  ?? ev.agent?.id ?? "?";
-  const type  = ev.type;
-  const msg   = ev.message ?? "";
-  const task  = ev.task ?? "";
+  const emoji = esc(ev.agent?.emoji ?? "🤖");
+  const name  = esc(ev.agent?.name  ?? ev.agent?.id ?? "?");
+  const type  = esc(ev.type);
+  const msg   = esc(ev.message ?? "");
+  const task  = esc(ev.task ?? "");
 
   item.innerHTML = `
     <div class="feed-item-top">
@@ -814,6 +1233,27 @@ function processEventGraph(ev) {
 }
 
 function processEvent(ev) {
+  // Track total events
+  totalEvents++;
+  
+  // Track per-agent events
+  const sid = ev.sessionId;
+  agentEventCounts[sid] = (agentEventCounts[sid] ?? 0) + 1;
+  agentLastActivity[sid] = ev.ts;
+  
+  // Update drawer if this agent is currently selected
+  if (selectedAgentId === sid) {
+    updateDrawerStats(sid);
+  }
+  
+  // Track active/completed agents
+  if (ev.type === "spawn") {
+    activeAgents++;
+  } else if (ev.type === "done" || ev.type === "error") {
+    activeAgents--;
+    completedAgents++;
+  }
+  
   // A root spawn (no parentId) signals a new run — clear stale nodes
   if (ev.type === "spawn" && !ev.parentId) {
     for (const t of fadeTimers.values()) clearTimeout(t);
@@ -824,12 +1264,15 @@ function processEvent(ev) {
     simulation.nodes([]);
     gNodes.selectAll("g.node-group").remove();
     gLinks.selectAll("line.link").remove();
+    
+    // Reset metrics on new run
+    activeAgents = 0;
+    completedAgents = 0;
   }
 
   processEventGraph(ev);
 
   // Fade-out timer for done nodes (live view only)
-  const sid = ev.sessionId;
   if (ev.type === "done" || ev.type === "error") {
     if (fadeTimers.has(sid)) clearTimeout(fadeTimers.get(sid));
     const t = setTimeout(() => {
@@ -843,6 +1286,8 @@ function processEvent(ev) {
 
   addFeedItem(ev);
   updateGraph();
+  pushCaption(makeCaptionText(ev));
+  updateMetricsStrip();
 }
 
 // ── WebSocket ─────────────────────────────────────────────────────────────────
@@ -889,6 +1334,43 @@ function connectWS() {
 
 connectWS();
 
+// ── Live caption ─────────────────────────────────────────────────────────────
+const capLines = [
+  document.getElementById("cap-line-0"),
+  document.getElementById("cap-line-1"),
+  document.getElementById("cap-line-2"),
+];
+const captionBuffer = [];
+
+function pushCaption(text) {
+  captionBuffer.push(text);
+  if (captionBuffer.length > 3) captionBuffer.shift();
+  capLines.forEach((el, i) => { el.textContent = captionBuffer[i] ?? ""; });
+}
+
+function makeCaptionText(ev) {
+  const name = ev.agent?.name ?? ev.agent?.id ?? "Agent";
+  switch (ev.type) {
+    case "spawn":   return `${name} joined — ${ev.task ? "working on " + ev.task : "ready"}`;
+    case "working": return `${name}: ${ev.message ?? "working…"}`;
+    case "done":    return `${name}: all done — ${ev.message ?? ""}`;
+    case "error":   return `${name}: error — ${ev.message ?? ""}`;
+    case "message": return `${name}: ${ev.message ?? ""}`;
+    default:         return `${name}: ${ev.message ?? ""}`;
+  }
+}
+
+// ── Autoplay ─────────────────────────────────────────────────────────────────
+(function autoPlay() {
+  const params = new URLSearchParams(location.search);
+  const scenario = params.get("autoplay");
+  if (scenario && SCENARIOS.includes(scenario)) {
+    postDemo(scenario);
+  } else {
+    setTimeout(() => postDemo("research-write"), 1500);
+  }
+})();
+
 // ── Run history ──────────────────────────────────────────────────────────────
 const runsPanel    = document.getElementById("runs-panel");
 const runsList     = document.getElementById("runs-list");
@@ -925,7 +1407,7 @@ async function loadRuns() {
     const status   = run.endedAt ? "done" : "active";
     const evCount  = run.events?.length ?? 0;
     const rootEv   = run.events?.[0];
-    const task     = rootEv?.task ?? rootEv?.agent?.name ?? run.runId.slice(0, 16);
+    const task     = esc(rootEv?.task ?? rootEv?.agent?.name ?? run.runId.slice(0, 16));
     div.innerHTML  = `
       <span class="run-status ${status}">${status}</span>
       <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.8rem">${task}</span>
@@ -983,26 +1465,26 @@ function detailRow(label, value) {
 
 function showEventDetail(ev) {
   const colour = TYPE_COLOURS[ev.type] ?? "#94a3b8";
-  const emoji  = ev.agent?.emoji ?? "🤖";
+  const emoji  = esc(ev.agent?.emoji ?? "🤖");
   const ts     = ev.ts ? new Date(ev.ts).toLocaleString() : "";
   detailModal.innerHTML = `
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
       <span style="font-size:1.5rem">${emoji}</span>
       <div style="flex:1;min-width:0">
-        <div style="font-weight:600;font-size:1rem">${ev.agent?.name ?? ev.agent?.id ?? "?"}</div>
-        <div style="font-size:0.75rem;color:#64748b">${ev.agent?.role ?? ""}</div>
+        <div style="font-weight:600;font-size:1rem">${esc(ev.agent?.name ?? ev.agent?.id ?? "?")}</div>
+        <div style="font-size:0.75rem;color:#64748b">${esc(ev.agent?.role ?? "")}</div>
       </div>
-      <span style="padding:3px 10px;border-radius:99px;font-size:0.75rem;font-weight:600;background:${colour}22;color:${colour};border:1px solid ${colour}55;white-space:nowrap">${ev.type}</span>
+      <span style="padding:3px 10px;border-radius:99px;font-size:0.75rem;font-weight:600;background:${colour}22;color:${colour};border:1px solid ${colour}55;white-space:nowrap">${esc(ev.type)}</span>
       <button id="detail-close" style="background:none;border:none;color:#64748b;cursor:pointer;font-size:1.3rem;padding:0 2px;line-height:1;flex-shrink:0">✕</button>
     </div>
     <div style="font-size:0.82rem">
-      ${detailRow("Agent ID",  ev.agent?.id)}
-      ${detailRow("Task",      ev.task)}
-      ${detailRow("Message",   ev.message)}
-      ${detailRow("Session",   ev.sessionId)}
-      ${detailRow("Parent",    ev.parentId)}
+      ${detailRow("Agent ID",  esc(ev.agent?.id))}
+      ${detailRow("Task",      esc(ev.task))}
+      ${detailRow("Message",   esc(ev.message))}
+      ${detailRow("Session",   esc(ev.sessionId))}
+      ${detailRow("Parent",    esc(ev.parentId))}
       ${detailRow("Timestamp", ts)}
-      ${detailRow("Event ID",  ev.id)}
+      ${detailRow("Event ID",  esc(ev.id))}
     </div>
   `;
   document.getElementById("detail-close").addEventListener("click", () => detailOverlay.classList.remove("open"));
@@ -1032,7 +1514,21 @@ document.getElementById("btn-random").addEventListener("click", () => {
   postDemo(s);
 });
 
+function showValueCard(scenario) {
+  const value = SCENARIO_VALUES[scenario];
+  if (!value) return;
+  const card = document.getElementById('value-card');
+  document.getElementById('value-card-title').textContent = value.title;
+  document.getElementById('value-card-text').textContent = value.value;
+  card.classList.add('visible');
+}
+
+function hideValueCard() {
+  document.getElementById('value-card').classList.remove('visible');
+}
+
 function postDemo(scenario) {
+  showValueCard(scenario);
   const base = location.pathname.endsWith("/") ? location.pathname.slice(0, -1) : location.pathname;
   fetch(`${base}/api/demo`, {
     method: "POST",
@@ -1040,6 +1536,78 @@ function postDemo(scenario) {
     body: JSON.stringify({ scenario }),
   }).catch(console.error);
 }
+
+// ── Metrics Strip ────────────────────────────────────────────────────────────
+function updateMetricsStrip() {
+  document.getElementById('metric-events').textContent = totalEvents;
+  document.getElementById('metric-active').textContent = activeAgents;
+  document.getElementById('metric-completed').textContent = completedAgents;
+}
+
+function formatUptime(ms) {
+  const seconds = Math.floor(ms / 1000);
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  return `${hours}h ${minutes % 60}m`;
+}
+
+setInterval(() => {
+  const uptime = Date.now() - dashboardStartTime;
+  document.getElementById('metric-uptime').textContent = formatUptime(uptime);
+}, 1000);
+
+// ── Present Mode ─────────────────────────────────────────────────────────────
+let isPresentMode = false;
+const btnPresent = document.getElementById('btn-present');
+const btnExitPresent = document.getElementById('btn-exit-present');
+
+function enterPresentMode() {
+  isPresentMode = true;
+  document.body.classList.add('present-mode');
+  
+  // Try to go fullscreen
+  if (document.documentElement.requestFullscreen) {
+    document.documentElement.requestFullscreen().catch(() => {});
+  }
+  
+  sessionStorage.setItem('presentMode', 'true');
+}
+
+function exitPresentMode() {
+  isPresentMode = false;
+  document.body.classList.remove('present-mode');
+  
+  // Exit fullscreen
+  if (document.exitFullscreen) {
+    document.exitFullscreen().catch(() => {});
+  }
+  
+  sessionStorage.setItem('presentMode', 'false');
+}
+
+btnPresent.addEventListener('click', enterPresentMode);
+btnExitPresent.addEventListener('click', exitPresentMode);
+
+// Keyboard shortcut: F key toggles present mode
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'f' || e.key === 'F') {
+    if (isPresentMode) {
+      exitPresentMode();
+    } else {
+      enterPresentMode();
+    }
+  }
+});
+
+// Restore present mode preference on page load
+window.addEventListener('load', () => {
+  if (sessionStorage.getItem('presentMode') === 'true') {
+    enterPresentMode();
+  }
+});
+
 </script>
 </body>
 </html>

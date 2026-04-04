@@ -1,7 +1,7 @@
 ---
 name: agent-swarm-dashboard
 description: >-
-  Install and manage the Agent Swarm Dashboard — a live web UI that shows sub-agent activity in real time.
+  Install and manage the AI Ops Centre dashboard — a live web UI (formerly "Agent Swarm Dashboard") that shows sub-agent activity in real time.
   Provides a WebSocket-connected dashboard and a REST event ingest API.
   Use when: (1) setting up or reinstalling the dashboard on an OpenClaw instance,
   (2) troubleshooting the dashboard service,
@@ -84,10 +84,12 @@ The server has a built-in registry (`AGENTS` map in `server.ts`). To add agents,
 When spawning, steering, or receiving results from any sub-agent, fire an event:
 
 ```bash
-curl -s -X POST http://localhost:3456/api/event \
+curl -s -X POST http://localhost:3457/api/event \
   -H "Content-Type: application/json" \
   -d '{"type":"spawn","sessionId":"<session-id>","agent":{"id":"<agent-id>","name":"<name>","role":"<role>"},"task":"<task>"}'
 ```
+
+**Note:** Default port is 3457 (not 3456). Update the URL if your instance uses a different port.
 
 ## Service Management
 
@@ -104,10 +106,12 @@ POST to `/api/demo` with `{ "scenario": "<name>" }`:
 - `design-review` — Lorne + Piers
 - `sprint-plan` — Caden + Senna + Orla
 - `security-audit` — Caden + Vael
-- `product-launch` — 6 agents: research, PM, architecture, security, writing
-- `incident-response` — 6 agents: triage, diagnose, hotfix review, post-mortem, comms
+- `from-brief-to-launch` — 6 agents: Senna (PM), Vesper (research), Lorne (arch), Piers (security), Cassia (content), Cleo (launch) — *replaces `product-launch`*
+- `the-3am-problem` — 6 agents: Pip (incident commander), Dara (triage), Cael (analyst), Vael (security), Cassia (comms), Bex (hotfix deployer)
+- `strategic-brief` — 5 agents: Vesper (market analyst), Maren (data insights), Senna (strategist), Lorne (architect), Cleo (positioning)
+- `error-recovery` — Fault tolerance demo: Cael fails, Pip re-routes to Vesper backup, Cassia verifies
 
-Or use the demo buttons in the UI. Note: demos consume tokens on your instance.
+Business value cards shown in the UI for each scenario. Autoplay on load via `?autoplay=<scenario>` URL param.
 
 ## Troubleshooting
 

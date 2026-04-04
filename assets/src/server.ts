@@ -207,13 +207,25 @@ function addEvent(ev: AgentEvent) {
 const AGENTS: Record<string, { name: string; role: string; emoji?: string }> = {
   pip:                { name: "Pip",    role: "Orchestrator",                       emoji: "🐉" },
   orchestrator:       { name: "Caden",  role: "Lead Orchestration Agent",            emoji: "🎯" },
-  researcher:         { name: "Vesper", role: "Senior Research Agent",               emoji: "🔍" },
-  writer:             { name: "Cassia", role: "Senior Content & Writing Agent",      emoji: "✍️" },
+  researcher:         { name: "Vesper", role: "Senior Research Agent",               emoji: "🔬" },
+  writer:             { name: "Cassia", role: "Senior Content & Writing Agent",      emoji: "📝" },
   architect:          { name: "Lorne",  role: "Principal Solutions Architect",       emoji: "🏗️" },
-  "code-reviewer":    { name: "Piers",  role: "Senior Code Review Agent",            emoji: "👁️" },
+  "code-reviewer":    { name: "Piers",  role: "Senior Code Review Agent",            emoji: "👀" },
   planner:            { name: "Orla",   role: "Senior Project Planning Agent",       emoji: "📋" },
-  productmanager:     { name: "Senna",  role: "Senior Product Management Agent",     emoji: "📊" },
+  productmanager:     { name: "Senna",  role: "Senior Product Management Agent",     emoji: "🎯" },
   "security-auditor": { name: "Vael",   role: "Senior Security Audit Agent",         emoji: "🛡️" },
+  // New agents for scenarios
+  triage:             { name: "Dara",   role: "Triage Lead",                         emoji: "🛡️" },
+  analyst:            { name: "Cael",   role: "Root Cause Analyst",                  emoji: "🔍" },
+  deployer:           { name: "Bex",    role: "Hotfix Deployer",                     emoji: "⚡" },
+  marketresearcher:   { name: "Vesper", role: "Market Researcher",                   emoji: "🔬" },
+  datainsights:       { name: "Maren",  role: "Data Insights Analyst",               emoji: "📊" },
+  strategist:         { name: "Senna",  role: "Product Strategist",                  emoji: "🎯" },
+  contentlead:        { name: "Cassia", role: "Content Lead",                        emoji: "✍️" },
+  launchcoordinator:  { name: "Cleo",   role: "Launch Coordinator",                    emoji: "🚀" },
+  positioning:        { name: "Cleo",   role: "Positioning Strategist",              emoji: "📣" },
+  backupanalyst:      { name: "Vesper", role: "Backup Analyst",                      emoji: "🔬" },
+  verifier:           { name: "Cassia", role: "Verifier",                            emoji: "✍️" },
 };
 
 function makeAgent(id: string) {
@@ -234,7 +246,7 @@ function makeEvent(
 
 type Scenario =
   | "research-write" | "design-review" | "sprint-plan" | "security-audit"
-  | "product-launch" | "incident-response";
+  | "the-3am-problem" | "from-brief-to-launch" | "strategic-brief" | "error-recovery";
 
 async function runDemoSequential(scenario: Scenario) {
   const pipSid = "pip-" + randomUUID().slice(0, 8);
@@ -293,99 +305,152 @@ async function runDemoSequential(scenario: Scenario) {
       addEvent(makeEvent("done",    "orchestrator",   cadSid,  { parentId: pipSid, message: "Sprint plan delivered" }));
       addEvent(makeEvent("done",    "pip",            pipSid,  { message: "Sprint planning complete" }));
     },
-    "security-audit": async () => {
-      const cadSid  = "caden-" + randomUUID().slice(0, 8);
-      const vaelSid = "vael-"  + randomUUID().slice(0, 8);
-      addEvent(makeEvent("spawn",   "orchestrator",     cadSid,  { parentId: pipSid, task: "Run security audit on auth service" }));
-      await sleep(1200);
-      addEvent(makeEvent("spawn",   "security-auditor", vaelSid, { parentId: cadSid, task: "Audit authentication service for vulnerabilities" }));
-      await sleep(2000);
-      addEvent(makeEvent("working", "security-auditor", vaelSid, { parentId: cadSid, message: "Scanning codebase..." }));
-      await sleep(2500);
-      addEvent(makeEvent("working", "security-auditor", vaelSid, { parentId: cadSid, message: "Checking OWASP top 10..." }));
-      await sleep(3000);
-      addEvent(makeEvent("done",    "security-auditor", vaelSid, { parentId: cadSid, message: "Audit complete: 1 high, 3 medium findings" }));
-      await sleep(1000);
-      addEvent(makeEvent("done",    "orchestrator",     cadSid,  { parentId: pipSid, message: "Audit report compiled" }));
-      addEvent(makeEvent("done",    "pip",              pipSid,  { message: "Security audit complete" }));
-    },
-    "product-launch": async () => {
-      const cadSid  = "caden-"  + randomUUID().slice(0, 8);
-      const vesSid  = "vesper-" + randomUUID().slice(0, 8);
+    "from-brief-to-launch": async () => {
       const senSid  = "senna-"  + randomUUID().slice(0, 8);
-      const lorSid  = "lorne-"  + randomUUID().slice(0, 8);
-      const casSid  = "cassia-" + randomUUID().slice(0, 8);
-      const vaelSid = "vael-"   + randomUUID().slice(0, 8);
-      addEvent(makeEvent("spawn",   "orchestrator",   cadSid, { parentId: pipSid, task: "Coordinate full product launch for v2.0" }));
-      await sleep(1000);
-      addEvent(makeEvent("spawn",   "researcher",     vesSid, { parentId: cadSid, task: "Research competitor landscape for v2.0 launch" }));
-      addEvent(makeEvent("spawn",   "productmanager", senSid, { parentId: cadSid, task: "Draft go-to-market strategy" }));
-      await sleep(1500);
-      addEvent(makeEvent("working", "researcher",     vesSid, { parentId: cadSid, message: "Analysing 8 competitors..." }));
-      addEvent(makeEvent("working", "productmanager", senSid, { parentId: cadSid, message: "Defining ICP and positioning..." }));
-      await sleep(2500);
-      addEvent(makeEvent("done",    "researcher",     vesSid, { parentId: cadSid, message: "Competitor report ready" }));
-      await sleep(1000);
-      addEvent(makeEvent("done",    "productmanager", senSid, { parentId: cadSid, message: "GTM strategy drafted" }));
-      await sleep(800);
-      addEvent(makeEvent("spawn",   "architect",        lorSid,  { parentId: cadSid, task: "Design infrastructure for v2.0 scale targets" }));
-      addEvent(makeEvent("spawn",   "security-auditor", vaelSid, { parentId: cadSid, task: "Pre-launch security review" }));
-      await sleep(1500);
-      addEvent(makeEvent("working", "architect",        lorSid,  { parentId: cadSid, message: "Sizing for 10× current load..." }));
-      addEvent(makeEvent("working", "security-auditor", vaelSid, { parentId: cadSid, message: "Reviewing auth flows and data handling..." }));
-      await sleep(3000);
-      addEvent(makeEvent("done",    "architect",        lorSid,  { parentId: cadSid, message: "Infra plan approved" }));
-      await sleep(500);
-      addEvent(makeEvent("done",    "security-auditor", vaelSid, { parentId: cadSid, message: "All clear — 0 blockers" }));
-      await sleep(800);
-      addEvent(makeEvent("spawn",   "writer",  casSid, { parentId: cadSid, task: "Write launch announcement, blog post, and email" }));
-      await sleep(1500);
-      addEvent(makeEvent("working", "writer",  casSid, { parentId: cadSid, message: "Drafting announcement copy..." }));
-      await sleep(3000);
-      addEvent(makeEvent("done",    "writer",  casSid, { parentId: cadSid, message: "All launch content ready for review" }));
-      await sleep(800);
-      addEvent(makeEvent("done",    "orchestrator", cadSid, { parentId: pipSid, message: "Launch pack complete — 6 agents, all green" }));
-      addEvent(makeEvent("done",    "pip",          pipSid, { message: "Product launch pipeline complete" }));
-    },
-    "incident-response": async () => {
-      const cadSid  = "caden-"  + randomUUID().slice(0, 8);
-      const vaelSid = "vael-"   + randomUUID().slice(0, 8);
+      const vesSid  = "vesper-" + randomUUID().slice(0, 8);
       const lorSid  = "lorne-"  + randomUUID().slice(0, 8);
       const pierSid = "piers-"  + randomUUID().slice(0, 8);
-      const orlaSid = "orla-"   + randomUUID().slice(0, 8);
       const casSid  = "cassia-" + randomUUID().slice(0, 8);
-      addEvent(makeEvent("spawn",   "orchestrator", cadSid, { parentId: pipSid, task: "Coordinate P1 incident response — API latency spike" }));
+      const cleoSid = "cleo-"   + randomUUID().slice(0, 8);
+      addEvent(makeEvent("spawn",   "productmanager", senSid, { parentId: pipSid, task: "Define product requirements from strategic brief" }));
       await sleep(800);
-      addEvent(makeEvent("spawn",   "security-auditor", vaelSid, { parentId: cadSid, task: "Rule out security breach — check access logs" }));
-      addEvent(makeEvent("spawn",   "architect",        lorSid,  { parentId: cadSid, task: "Diagnose infrastructure root cause" }));
-      await sleep(1000);
-      addEvent(makeEvent("working", "security-auditor", vaelSid, { parentId: cadSid, message: "Scanning access logs for anomalies..." }));
-      addEvent(makeEvent("working", "architect",        lorSid,  { parentId: cadSid, message: "Checking DB query times, CPU, memory..." }));
-      await sleep(2000);
-      addEvent(makeEvent("done",    "security-auditor", vaelSid, { parentId: cadSid, message: "No breach detected — clean" }));
-      await sleep(800);
-      addEvent(makeEvent("working", "architect",        lorSid,  { parentId: cadSid, message: "Found it: N+1 query after deploy #447" }));
+      addEvent(makeEvent("spawn",   "researcher",     vesSid, { parentId: senSid, task: "Competitive analysis and market sizing" }));
       await sleep(1500);
-      addEvent(makeEvent("done",    "architect",        lorSid,  { parentId: cadSid, message: "Root cause confirmed: missing index on events.session_id" }));
-      await sleep(600);
-      addEvent(makeEvent("spawn",   "code-reviewer", pierSid, { parentId: cadSid, task: "Review hotfix: add index on events.session_id" }));
-      await sleep(1500);
-      addEvent(makeEvent("working", "code-reviewer", pierSid, { parentId: cadSid, message: "Checking migration for side effects..." }));
-      await sleep(2000);
-      addEvent(makeEvent("done",    "code-reviewer", pierSid, { parentId: cadSid, message: "Hotfix approved — safe to deploy" }));
-      await sleep(600);
-      addEvent(makeEvent("spawn",   "planner", orlaSid, { parentId: cadSid, task: "Draft incident timeline and action items" }));
-      addEvent(makeEvent("spawn",   "writer",  casSid,  { parentId: cadSid, task: "Write customer-facing status page update" }));
-      await sleep(1500);
-      addEvent(makeEvent("working", "planner", orlaSid, { parentId: cadSid, message: "Reconstructing timeline from logs..." }));
-      addEvent(makeEvent("working", "writer",  casSid,  { parentId: cadSid, message: "Drafting status update..." }));
+      addEvent(makeEvent("working", "productmanager", senSid, { parentId: pipSid, message: "Scoping features from brief..." }));
+      addEvent(makeEvent("working", "researcher",     vesSid, { parentId: senSid, message: "Analysing 6 competitors..." }));
       await sleep(2500);
-      addEvent(makeEvent("done",    "writer",  casSid,  { parentId: cadSid, message: "Status update posted" }));
-      await sleep(500);
-      addEvent(makeEvent("done",    "planner", orlaSid, { parentId: cadSid, message: "Post-mortem doc ready: 3 action items" }));
+      addEvent(makeEvent("done",    "productmanager", senSid, { parentId: pipSid, message: "PRD complete: 12 user stories" }));
       await sleep(800);
-      addEvent(makeEvent("done",    "orchestrator", cadSid, { parentId: pipSid, message: "Incident resolved — MTTR 18 min" }));
-      addEvent(makeEvent("done",    "pip",          pipSid, { message: "Incident response complete" }));
+      addEvent(makeEvent("spawn",   "architect",     lorSid,  { parentId: senSid, task: "Design architecture for launch" }));
+      addEvent(makeEvent("spawn",   "code-reviewer", pierSid, { parentId: senSid, task: "Security review for launch" }));
+      await sleep(1500);
+      addEvent(makeEvent("working", "architect",     lorSid,  { parentId: senSid, message: "Sizing infrastructure..." }));
+      addEvent(makeEvent("working", "code-reviewer", pierSid, { parentId: senSid, message: "Threat modeling..." }));
+      await sleep(2500);
+      addEvent(makeEvent("done",    "researcher",    vesSid,  { parentId: senSid, message: "Market report: $2.4M TAM identified" }));
+      await sleep(500);
+      addEvent(makeEvent("done",    "architect",     lorSid,  { parentId: senSid, message: "Architecture approved" }));
+      await sleep(500);
+      addEvent(makeEvent("done",    "code-reviewer", pierSid, { parentId: senSid, message: "Security review passed" }));
+      await sleep(800);
+      addEvent(makeEvent("spawn",   "writer",       casSid,  { parentId: senSid, task: "Write launch copy and positioning" }));
+      await sleep(1500);
+      addEvent(makeEvent("working", "writer",       casSid,  { parentId: senSid, message: "Drafting messaging..." }));
+      await sleep(2000);
+      addEvent(makeEvent("done",    "writer",       casSid,  { parentId: senSid, message: "Launch copy ready" }));
+      await sleep(800);
+      addEvent(makeEvent("spawn",   "launchcoordinator", cleoSid, { parentId: pipSid, task: "Coordinate final launch" }));
+      await sleep(1200);
+      addEvent(makeEvent("done",    "launchcoordinator", cleoSid, { parentId: pipSid, message: "Launch sequence complete — live in 3, 2, 1..." }));
+      addEvent(makeEvent("done",    "pip",               pipSid,  { message: "From brief to launch: complete" }));
+    },
+    "the-3am-problem": async () => {
+      const pipSid  = "pip-"  + randomUUID().slice(0, 8);
+      const darSid  = "dara-" + randomUUID().slice(0, 8);
+      const caelSid = "cael-" + randomUUID().slice(0, 8);
+      const vaelSid = "vael-" + randomUUID().slice(0, 8);
+      const casSid  = "cassia-" + randomUUID().slice(0, 8);
+      const bexSid  = "bex-"  + randomUUID().slice(0, 8);
+      addEvent(makeEvent("spawn",   "pip",    pipSid, { task: "Incident Commander — 3am production outage" }));
+      await sleep(800);
+      addEvent(makeEvent("message", "pip",    pipSid, { message: "🚨 P1 alert — payment service latency >5s" }));
+      await sleep(500);
+      addEvent(makeEvent("spawn",   "triage", darSid, { parentId: pipSid, task: "Assess severity and customer impact" }));
+      await sleep(1200);
+      addEvent(makeEvent("working", "triage", darSid, { parentId: pipSid, message: "Checking error rates..." }));
+      await sleep(1500);
+      addEvent(makeEvent("done",    "triage", darSid, { parentId: pipSid, message: "Confirmed: 12% checkout failures, revenue at risk" }));
+      await sleep(600);
+      addEvent(makeEvent("spawn",   "analyst", caelSid, { parentId: pipSid, task: "Find root cause" }));
+      addEvent(makeEvent("spawn",   "security-auditor", vaelSid, { parentId: pipSid, task: "Check for security exploit" }));
+      await sleep(1500);
+      addEvent(makeEvent("working", "analyst", caelSid, { parentId: pipSid, message: "Correlating deploy timeline..." }));
+      addEvent(makeEvent("working", "security-auditor", vaelSid, { parentId: pipSid, message: "Scanning access logs..." }));
+      await sleep(2500);
+      addEvent(makeEvent("done",    "security-auditor", vaelSid, { parentId: pipSid, message: "No exploit — clean" }));
+      await sleep(500);
+      addEvent(makeEvent("working", "analyst", caelSid, { parentId: pipSid, message: "Found it — commit #447 introduced N+1 query" }));
+      await sleep(1500);
+      addEvent(makeEvent("done",    "analyst", caelSid, { parentId: pipSid, message: "Root cause: missing index on orders.user_id" }));
+      await sleep(600);
+      addEvent(makeEvent("spawn",   "writer", casSid, { parentId: pipSid, task: "Draft status page update" }));
+      await sleep(1200);
+      addEvent(makeEvent("working", "writer", casSid, { parentId: pipSid, message: "Writing customer communication..." }));
+      await sleep(2000);
+      addEvent(makeEvent("done",    "writer", casSid, { parentId: pipSid, message: "Status page updated — all customers notified" }));
+      await sleep(800);
+      addEvent(makeEvent("spawn",   "deployer", bexSid, { parentId: pipSid, task: "Deploy hotfix to production" }));
+      await sleep(1500);
+      addEvent(makeEvent("working", "deployer", bexSid, { parentId: pipSid, message: "Running migrations..." }));
+      await sleep(2000);
+      addEvent(makeEvent("done",    "deployer", bexSid, { parentId: pipSid, message: "Hotfix deployed — latency <200ms" }));
+      await sleep(600);
+      addEvent(makeEvent("done",    "pip", pipSid, { message: "Incident resolved — MTTR 14 minutes" }));
+    },
+    "strategic-brief": async () => {
+      const vesSid = "vesper-" + randomUUID().slice(0, 8);
+      const marSid = "maren-"  + randomUUID().slice(0, 8);
+      const senSid = "senna-"  + randomUUID().slice(0, 8);
+      const lorSid = "lorne-"  + randomUUID().slice(0, 8);
+      const cleoSid = "cleo-"  + randomUUID().slice(0, 8);
+      addEvent(makeEvent("spawn",   "researcher", vesSid, { parentId: pipSid, task: "Market entry analysis — AI ops sector" }));
+      await sleep(1000);
+      addEvent(makeEvent("spawn",   "datainsights", marSid, { parentId: vesSid, task: "Competitive intelligence data" }));
+      await sleep(1500);
+      addEvent(makeEvent("working", "researcher",   vesSid, { parentId: vesSid, message: "Sizing TAM and growth rates..." }));
+      addEvent(makeEvent("working", "datainsights", marSid, { parentId: vesSid, message: "Analysing competitor pricing..." }));
+      await sleep(3000);
+      addEvent(makeEvent("done",    "datainsights", marSid, { parentId: vesSid, message: "Competitor analysis complete: 7 players mapped" }));
+      await sleep(800);
+      addEvent(makeEvent("done",    "researcher",   vesSid, { parentId: vesSid, message: "Market sizing: $4.2B TAM, 34% CAGR" }));
+      await sleep(600);
+      addEvent(makeEvent("spawn",   "strategist", senSid, { parentId: pipSid, task: "Define market entry strategy" }));
+      await sleep(1200);
+      addEvent(makeEvent("working", "strategist", senSid, { parentId: pipSid, message: "Identifying whitespace opportunities..." }));
+      await sleep(2500);
+      addEvent(makeEvent("done",    "strategist", senSid, { parentId: pipSid, message: "Entry point identified: mid-market underserved" }));
+      await sleep(800);
+      addEvent(makeEvent("spawn",   "architect", lorSid, { parentId: senSid, task: "Capability gap analysis" }));
+      await sleep(1500);
+      addEvent(makeEvent("working", "architect", lorSid, { parentId: senSid, message: "Mapping build vs buy decisions..." }));
+      await sleep(2500);
+      addEvent(makeEvent("done",    "architect", lorSid, { parentId: senSid, message: "Capability roadmap defined: 3 phases" }));
+      await sleep(800);
+      addEvent(makeEvent("spawn",   "positioning", cleoSid, { parentId: pipSid, task: "Develop positioning and messaging" }));
+      await sleep(1500);
+      addEvent(makeEvent("working", "positioning", cleoSid, { parentId: pipSid, message: "Crafting value proposition..." }));
+      await sleep(2500);
+      addEvent(makeEvent("done",    "positioning", cleoSid, { parentId: pipSid, message: "Positioning: 'AI operations for teams that ship'" }));
+      addEvent(makeEvent("done",    "pip",         pipSid,  { message: "Strategic brief complete — market entry plan ready" }));
+    },
+    "error-recovery": async () => {
+      const caelSid   = "cael-"   + randomUUID().slice(0, 8);
+      const pip2Sid   = "pip2-"   + randomUUID().slice(0, 8);
+      const vesSid    = "vesper-" + randomUUID().slice(0, 8);
+      const cassSid   = "cassia-" + randomUUID().slice(0, 8);
+      addEvent(makeEvent("spawn", "analyst", caelSid, { parentId: pipSid, task: "Primary analysis — market sentiment" }));
+      await sleep(1500);
+      addEvent(makeEvent("working", "analyst", caelSid, { parentId: pipSid, message: "Processing 50k social mentions..." }));
+      await sleep(2500);
+      addEvent(makeEvent("error",   "analyst", caelSid, { parentId: pipSid, message: "Analysis pipeline failed — rate limit exceeded" }));
+      await sleep(800);
+      addEvent(makeEvent("spawn",   "pip", pip2Sid, { parentId: pipSid, task: "Orchestrator — detecting failure" }));
+      await sleep(600);
+      addEvent(makeEvent("message", "pip", pip2Sid, { parentId: pipSid, message: "⚠️ Cael failed — re-routing to backup" }));
+      await sleep(800);
+      addEvent(makeEvent("spawn",   "backupanalyst", vesSid, { parentId: pip2Sid, task: "Backup analysis — complete the task" }));
+      await sleep(1500);
+      addEvent(makeEvent("working", "backupanalyst", vesSid, { parentId: pip2Sid, message: "Processing with distributed workers..." }));
+      await sleep(3000);
+      addEvent(makeEvent("done",    "backupanalyst", vesSid, { parentId: pip2Sid, message: "Analysis complete — sentiment: 78% positive" }));
+      await sleep(800);
+      addEvent(makeEvent("spawn",   "verifier", cassSid, { parentId: pip2Sid, task: "Verify backup results" }));
+      await sleep(1500);
+      addEvent(makeEvent("working", "verifier", cassSid, { parentId: pip2Sid, message: "Cross-checking sample..." }));
+      await sleep(2000);
+      addEvent(makeEvent("done",    "verifier", cassSid, { parentId: pip2Sid, message: "Verified: results match expected patterns" }));
+      addEvent(makeEvent("done",    "pip", pip2Sid, { parentId: pipSid, message: "Fault tolerance demonstrated — 0 data loss" }));
+      addEvent(makeEvent("done",    "pip", pipSid,  { message: "Error recovery complete" }));
     },
   };
 
@@ -402,8 +467,23 @@ const app = new Elysia()
   .get("/api/runs",   () => ({ runs }))
   .post(
     "/api/event",
-    ({ body }) => {
+    ({ body, set }) => {
       const ev = body as AgentEvent;
+      if (!ev.type || typeof ev.type !== "string") {
+        console.warn("[/api/event] rejected: missing or invalid 'type' field", body);
+        set.status = 400;
+        return { error: "field 'type' is required and must be a string" };
+      }
+      if (!ev.sessionId || typeof ev.sessionId !== "string") {
+        console.warn("[/api/event] rejected: missing or invalid 'sessionId' field", body);
+        set.status = 400;
+        return { error: "field 'sessionId' is required and must be a string" };
+      }
+      if (!ev.agent || typeof ev.agent !== "object" || typeof ev.agent.id !== "string") {
+        console.warn("[/api/event] rejected: missing or invalid 'agent' field", body);
+        set.status = 400;
+        return { error: "field 'agent' is required and must be an object with an 'id' string" };
+      }
       if (!ev.id) ev.id = randomUUID();
       if (!ev.ts) ev.ts = Date.now();
       addEvent(ev);
@@ -417,7 +497,7 @@ const app = new Elysia()
       const { scenario } = body as { scenario: Scenario };
       const valid: Scenario[] = [
         "research-write", "design-review", "sprint-plan", "security-audit",
-        "product-launch", "incident-response",
+        "from-brief-to-launch", "the-3am-problem", "strategic-brief", "error-recovery",
       ];
       if (!valid.includes(scenario)) return { error: "unknown scenario" };
       runDemoSequential(scenario).catch(console.error);
@@ -432,4 +512,4 @@ const app = new Elysia()
   })
   .listen(PORT);
 
-console.log(`🐉 Agent Swarm Dashboard listening on http://localhost:${PORT} (MAX_RUNS=${MAX_RUNS}, DB=${DB_PATH})`);
+console.log(`🐉 AI Ops Centre listening on http://localhost:${PORT} (MAX_RUNS=${MAX_RUNS}, DB=${DB_PATH})`);
